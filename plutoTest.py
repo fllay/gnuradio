@@ -70,13 +70,12 @@ class plutoTest(gr.top_block, Qt.QWidget):
         ##################################################
         self.sps = sps = 8
         self.samp_rate = samp_rate = 1000000
-        self.qpsk = qpsk = digital.constellation_rect([0.707+0.707j, -0.707+0.707j, -0.707-0.707j, 0.707-0.707j], [0, 1, 2, 3],
-        4, 2, 2, 1, 1).base()
+        self.mod_obj = mod_obj = digital.constellation_qpsk().base()
         self.excess_bw = excess_bw = .350
         self.timing_loop_bw = timing_loop_bw = 6.28/100.0
         self.rrc_taps = rrc_taps = firdes.root_raised_cosine(1.0,samp_rate,samp_rate/sps,excess_bw,11*sps)
         self.freq = freq = 880000000
-        self.CMA = CMA = digital.adaptive_algorithm_cma( qpsk, .0001, 4).base()
+        self.CMA = CMA = digital.adaptive_algorithm_cma( mod_obj, .0001, 4).base()
         self.BW = BW = 200000
 
         ##################################################
@@ -316,7 +315,7 @@ class plutoTest(gr.top_block, Qt.QWidget):
         self.digital_linear_equalizer_0 = digital.linear_equalizer(15, sps, CMA, True, [ ], 'corr_est')
         self.digital_costas_loop_cc_0 = digital.costas_loop_cc(timing_loop_bw, 4, False)
         self.digital_constellation_modulator_0 = digital.generic_mod(
-            constellation=qpsk,
+            constellation=mod_obj,
             differential=True,
             samples_per_symbol=sps,
             pre_diff_code=True,
@@ -324,6 +323,7 @@ class plutoTest(gr.top_block, Qt.QWidget):
             verbose=False,
             log=False,
             truncate=False)
+        self.blocks_multiply_const_vxx_0 = blocks.multiply_const_cc(0.5)
         self.analog_random_source_x_0 = blocks.vector_source_b(list(map(int, numpy.random.randint(0, 255, 10000))), True)
         self.analog_agc2_xx_0 = analog.agc2_cc((1e-1), (1e-2), 1.0, 1.0)
         self.analog_agc2_xx_0.set_max_gain(65536)
@@ -334,9 +334,10 @@ class plutoTest(gr.top_block, Qt.QWidget):
         ##################################################
         self.connect((self.analog_agc2_xx_0, 0), (self.digital_symbol_sync_xx_0, 0))
         self.connect((self.analog_random_source_x_0, 0), (self.digital_constellation_modulator_0, 0))
+        self.connect((self.blocks_multiply_const_vxx_0, 0), (self.soapy_plutosdr_sink_0, 0))
+        self.connect((self.digital_constellation_modulator_0, 0), (self.blocks_multiply_const_vxx_0, 0))
         self.connect((self.digital_constellation_modulator_0, 0), (self.qtgui_const_sink_x_0_0_1_0, 0))
         self.connect((self.digital_constellation_modulator_0, 0), (self.qtgui_freq_sink_x_0, 0))
-        self.connect((self.digital_constellation_modulator_0, 0), (self.soapy_plutosdr_sink_0, 0))
         self.connect((self.digital_costas_loop_cc_0, 0), (self.qtgui_const_sink_x_0_0_0, 0))
         self.connect((self.digital_linear_equalizer_0, 0), (self.digital_costas_loop_cc_0, 0))
         self.connect((self.digital_linear_equalizer_0, 0), (self.qtgui_const_sink_x_0_0, 0))
@@ -371,11 +372,11 @@ class plutoTest(gr.top_block, Qt.QWidget):
         self.soapy_plutosdr_sink_0.set_sample_rate(0, self.samp_rate)
         self.soapy_rtlsdr_source_0.set_sample_rate(0, self.samp_rate)
 
-    def get_qpsk(self):
-        return self.qpsk
+    def get_mod_obj(self):
+        return self.mod_obj
 
-    def set_qpsk(self, qpsk):
-        self.qpsk = qpsk
+    def set_mod_obj(self, mod_obj):
+        self.mod_obj = mod_obj
 
     def get_excess_bw(self):
         return self.excess_bw
